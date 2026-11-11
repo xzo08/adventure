@@ -8,24 +8,24 @@
   * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
   body { background: #18181b; overflow: hidden; touch-action: none; font-family: 'Courier New', Courier, monospace; }
   canvas { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; }
-  #controls {
-    position: fixed; bottom: 18px; left: 0; width: 100%; padding: 0 20px;
+    #controls {
+    position: fixed; bottom: 16px; left: 0; width: 100%; padding: 0 12px;
     display: flex; justify-content: space-between; pointer-events: none; z-index: 10;
   }
-  .btn-group { display: flex; gap: 12px; pointer-events: auto; align-items: center; }
+  .btn-group { display: flex; gap: 8px; pointer-events: auto; align-items: center; }
   .btn {
-    width: 62px; height: 62px; border-radius: 50%;
+    width: 56px; height: 56px; border-radius: 50%;
     background: rgba(30, 41, 59, 0.88); border: 3px solid #e2e8f0;
-    color: #fff; font-size: 22px; font-weight: bold;
+    color: #fff; font-size: 20px; font-weight: bold;
     display: flex; align-items: center; justify-content: center;
     box-shadow: 0 4px 0 #090d16;
   }
   .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #090d16; }
-  .btn-hit { background: rgba(220, 38, 38, 0.9); border-color: #fca5a5; font-size: 14px; }
-  .btn-talk { background: rgba(22, 163, 74, 0.9); border-color: #86efac; font-size: 14px; }
+  .btn-hit { background: rgba(220, 38, 38, 0.9); border-color: #fca5a5; font-size: 13px; }
+  .btn-talk { background: rgba(22, 163, 74, 0.9); border-color: #86efac; font-size: 13px; }
   .btn-sit {
-    display: none; width: auto; padding: 0 22px; border-radius: 16px;
-    background: #facc15; border-color: #fef08a; color: #18181b; font-size: 17px;
+    display: none; width: auto; padding: 0 18px; border-radius: 16px;
+    background: #facc15; border-color: #fef08a; color: #18181b; font-size: 15px;
   }
   #choices {
     position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
@@ -68,9 +68,21 @@ const btnSit = document.getElementById('btn-sit');
 
 let W, H, groundY;
 function resize() {
+  const oldGroundY = groundY;
   W = canvas.width = window.innerWidth;
   H = canvas.height = window.innerHeight;
-  groundY = H - 115;
+  const isPortrait = H > W;
+  groundY = Math.max(240, H - (isPortrait ? 130 : 105));
+
+  if (typeof p1 !== 'undefined' && oldGroundY) {
+    p1.y = groundY - p1.h;
+    p2.y = groundY - p2.h;
+    if (typeof obstacles !== 'undefined') {
+      obstacles.forEach(o => {
+        if (o.alive) o.y = groundY - o.h;
+      });
+    }
+  }
 }
 window.addEventListener('resize', resize);
 resize();
@@ -1160,7 +1172,8 @@ function drawSpeechBubble(targetX, targetY, speaker, text) {
   const boxW = Math.max(150, maxW);
   const boxH = 34 + lines.length * 18;
   const bx = Math.max(14, Math.min(W - boxW - 14, targetX - boxW / 2));
-  const by = Math.max(66, targetY - boxH - 34);
+  const minTopY = H > W ? 136 : 66;
+  const by = Math.max(minTopY, targetY - boxH - 34);
 
   const cx = Math.max(bx + 20, Math.min(bx + boxW - 20, targetX));
   ctx.fillStyle = '#ffffff';
@@ -1367,29 +1380,35 @@ function draw() {
 
   ctx.restore();
 
-  if (gameState !== 'FINALE' && gameState !== 'GAMEOVER') {
-    pxRect(14, 14, 270, 58, 'rgba(15, 23, 42, 0.88)');
+    if (gameState !== 'FINALE' && gameState !== 'GAMEOVER') {
+    const isPortrait = H > W;
+    const panelW = isPortrait ? W - 24 : 270;
+
+    pxRect(12, 12, panelW, 54, 'rgba(15, 23, 42, 0.88)');
     ctx.fillStyle = '#fde047';
-    ctx.font = 'bold 15px Courier New';
+    ctx.font = 'bold 14px Courier New';
     ctx.textAlign = 'left';
-    ctx.fillText(data.name, 24, 34);
+    ctx.fillText(data.name, 22, 31);
 
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 13px Courier New';
-    ctx.fillText(`HP: ${hp}/${maxHp}`, 24, 57);
+    ctx.fillText(`HP: ${hp}/${maxHp}`, 22, 52);
     ctx.fillStyle = '#334155';
-    ctx.fillRect(105, 46, 160, 14);
+    ctx.fillRect(102, 42, panelW - 114, 13);
     ctx.fillStyle = hp > 3 ? '#22c55e' : '#ef4444';
-    ctx.fillRect(105, 46, 160 * (hp / maxHp), 14);
+    ctx.fillRect(102, 42, (panelW - 114) * (hp / maxHp), 13);
 
-    const qw = Math.min(310, W * 0.44);
-    pxRect(W - qw - 14, 14, qw, 58, 'rgba(15, 23, 42, 0.88)');
+    const qx = isPortrait ? 12 : W - Math.min(310, W * 0.44) - 12;
+    const qy = isPortrait ? 74 : 12;
+    const qw = isPortrait ? W - 24 : Math.min(310, W * 0.44);
+
+    pxRect(qx, qy, qw, 52, 'rgba(15, 23, 42, 0.88)');
     ctx.fillStyle = '#38bdf8';
-    ctx.font = 'bold 13px Courier New';
-    ctx.fillText('ТЕКУЩЕЕ ЗАДАНИЕ:', W - qw - 4, 33);
+    ctx.font = 'bold 12px Courier New';
+    ctx.fillText('ТЕКУЩЕЕ ЗАДАНИЕ:', qx + 10, qy + 20);
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 13px Courier New';
-    ctx.fillText(currentQuest, W - qw - 4, 55);
+    ctx.fillText(currentQuest, qx + 10, qy + 40);
   }
 
   if (gameState === 'DIALOG' && currentLine) {
