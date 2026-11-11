@@ -567,10 +567,12 @@ function update() {
     targetZoom = 1.48;
     targetCamX = 1180 + 88;
     targetCamY = groundY - 45;
-  } else {
-    targetZoom = 1.0;
-    targetCamX = Math.max(W / 2, Math.min(levelWidth - W / 2, p1.x + W * 0.15));
-    targetCamY = H / 2;
+    } else {
+    const isPortrait = H > W;
+    targetZoom = isPortrait ? 0.82 : 1.0;
+    const lookAhead = isPortrait ? W * 0.05 : W * 0.15;
+    targetCamX = Math.max(W / (2 * targetZoom), Math.min(levelWidth - W / (2 * targetZoom), p1.x + lookAhead));
+    targetCamY = isPortrait ? groundY - H * 0.28 : H / 2;
   }
 
   camZoom += (targetZoom - camZoom) * 0.09;
