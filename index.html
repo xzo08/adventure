@@ -40,11 +40,26 @@
   .choice-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #18181b; }
   .choice-bad { border-color: #dc2626; color: #b91c1c; background: #fef2f2; }
   .choice-good { border-color: #16a34a; color: #15803d; background: #f0fdf4; }
+   #rotate-screen {
+    display: none; position: fixed; inset: 0; background: #0f172a;
+    color: #fde047; z-index: 999; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; padding: 24px;
+  }
+  @media (orientation: portrait) {
+    #rotate-screen { display: flex; }
+  }
+
 </style>
 </head>
 <body>
 
 <canvas id="game"></canvas>
+ <div id="rotate-screen">
+  <div style="font-size: 54px; margin-bottom: 16px;">📱🔄</div>
+  <h2 style="font-size: 22px; margin-bottom: 10px;">ПОВЕРНИ ТЕЛЕФОН ГОРИЗОНТАЛЬНО</h2>
+  <p style="color: #cbd5e1; font-size: 15px;">Игра сделана под широкий экран, чтобы всё помещалось красиво!</p>
+</div>
+
 <div id="choices"></div>
 
 <div id="controls">
@@ -68,12 +83,23 @@ const btnSit = document.getElementById('btn-sit');
 
 let W, H, groundY;
 function resize() {
+  const oldGroundY = groundY;
   W = canvas.width = window.innerWidth;
   H = canvas.height = window.innerHeight;
-  groundY = H - 115;
+  groundY = Math.max(240, H - 110);
+
+  // Если уровень уже загружен — плавно сдвигаем всех персонажей и объекты на новую линию земли
+  if (typeof p1 !== 'undefined' && oldGroundY) {
+    p1.y = groundY - p1.h;
+    p2.y = groundY - p2.h;
+    if (typeof obstacles !== 'undefined') {
+      obstacles.forEach(o => {
+        if (o.alive) o.y = groundY - o.h;
+      });
+    }
+  }
 }
-window.addEventListener('resize', resize);
-resize();
+
 
 const keys = { left: false, right: false };
 let level = 0, levelWidth = 2500;
@@ -798,13 +824,12 @@ function drawSonya(g) {
   ctx.fillStyle = '#f87171';
   ctx.fillRect(g.dir === 1 ? x + 22 : x + 9, y + 11, 3, 2);
 
-  pxRect(x + 4, y - 4, 27, 9, '#854d0e');
-  if (g.dir === -1) pxRect(x + 22, y + 3, 9, 19, '#854d0e');
-  else pxRect(x + 4, y + 3, 9, 19, '#854d0e');
-  ctx.fillStyle = '#a16207';
-  ctx.fillRect(x + 6, y - 3, 22, 6);
-  ctx.fillStyle = '#ca8a04';
-  ctx.fillRect(x + 9, y - 1, 15, 2);
+  pxRect(x + 4, y - 4, 27, 9, '#3e1c0a');
+  if (g.dir === -1) pxRect(x + 22, y + 3, 9, 19, '#3e1c0a');
+  else pxRect(x + 4, y + 3, 9, 19, '#3e1c0a');
+  ctx.fillStyle = '#78350f';
+  ctx.fillRect(x + 8, y - 2, 16, 3);
+
 
   const eyeX = g.dir === 1 ? x + 21 : x + 10;
   ctx.fillStyle = '#090d16';
