@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Невораятные приключения Гончи и Сони!</title>
+<title>Купинский квест: Где мобила?!</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
   body { background: #18181b; overflow: hidden; touch-action: none; font-family: 'Courier New', Courier, monospace; }
@@ -40,7 +40,7 @@
   .choice-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #18181b; }
   .choice-bad { border-color: #dc2626; color: #b91c1c; background: #fef2f2; }
   .choice-good { border-color: #16a34a; color: #15803d; background: #f0fdf4; }
-   #rotate-screen {
+  #rotate-screen {
     display: none; position: fixed; inset: 0; background: #0f172a;
     color: #fde047; z-index: 999; flex-direction: column;
     align-items: center; justify-content: center; text-align: center; padding: 24px;
@@ -48,13 +48,13 @@
   @media (orientation: portrait) {
     #rotate-screen { display: flex; }
   }
-
 </style>
 </head>
 <body>
 
 <canvas id="game"></canvas>
- <div id="rotate-screen">
+
+<div id="rotate-screen">
   <div style="font-size: 54px; margin-bottom: 16px;">📱🔄</div>
   <h2 style="font-size: 22px; margin-bottom: 10px;">ПОВЕРНИ ТЕЛЕФОН ГОРИЗОНТАЛЬНО</h2>
   <p style="color: #cbd5e1; font-size: 15px;">Игра сделана под широкий экран, чтобы всё помещалось красиво!</p>
@@ -88,7 +88,6 @@ function resize() {
   H = canvas.height = window.innerHeight;
   groundY = Math.max(240, H - 110);
 
-  // Если уровень уже загружен — плавно сдвигаем всех персонажей и объекты на новую линию земли
   if (typeof p1 !== 'undefined' && oldGroundY) {
     p1.y = groundY - p1.h;
     p2.y = groundY - p2.h;
@@ -97,6 +96,7 @@ function resize() {
         if (o.alive) o.y = groundY - o.h;
       });
     }
+  }
 }
 window.addEventListener('resize', resize);
 resize();
@@ -348,11 +348,13 @@ function triggerGazeboScene() {
   gameState = 'GAZEBO_SCENE';
   const gzX = 1180;
   p2.x = gzX + 18;
+  p2.y = groundY - p2.h;
   p2.dir = 1;
   p2.sitting = true;
 
   setTimeout(() => {
     p1.x = gzX + 124;
+    p1.y = groundY - p1.h;
     p1.dir = -1;
     p1.sitting = true;
 
@@ -661,6 +663,7 @@ function update() {
   const targetP2X = p1.x - (p1.dir * 52);
   const p2Move = (targetP2X - p2.x) * 0.08;
   p2.x += p2Move;
+  if (!p2.sitting) p2.y = groundY - p2.h;
   if (Math.abs(p2Move) > 0.3) p2.walkPhase += 0.25;
   else p2.walkPhase = 0;
   p2.dir = p1.x >= p2.x ? 1 : -1;
@@ -829,7 +832,6 @@ function drawSonya(g) {
   else pxRect(x + 4, y + 3, 9, 19, '#3e1c0a');
   ctx.fillStyle = '#78350f';
   ctx.fillRect(x + 8, y - 2, 16, 3);
-
 
   const eyeX = g.dir === 1 ? x + 21 : x + 10;
   ctx.fillStyle = '#090d16';
@@ -1526,7 +1528,7 @@ function handleFinaleTap(clientX, clientY) {
 canvas.addEventListener('click', e => handleFinaleTap(e.clientX, e.clientY));
 canvas.addEventListener('touchstart', e => {
   if (gameState === 'FINALE' && e.touches.length > 0) {
-    handleFinaleTap(e.touches.clientX, e.touches.clientY);
+    handleFinaleTap(e.touches[0].clientX, e.touches[0].clientY);
   }
 });
 
