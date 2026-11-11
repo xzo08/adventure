@@ -97,9 +97,9 @@ function resize() {
         if (o.alive) o.y = groundY - o.h;
       });
     }
-  }
 }
-
+window.addEventListener('resize', resize);
+resize();
 
 const keys = { left: false, right: false };
 let level = 0, levelWidth = 2500;
