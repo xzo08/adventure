@@ -8,7 +8,7 @@
   * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
   body { background: #18181b; overflow: hidden; touch-action: none; font-family: 'Courier New', Courier, monospace; }
   canvas { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; }
-    #controls {
+  #controls {
     position: fixed; bottom: 16px; left: 0; width: 100%; padding: 0 12px;
     display: flex; justify-content: space-between; pointer-events: none; z-index: 10;
   }
@@ -28,13 +28,13 @@
     background: #facc15; border-color: #fef08a; color: #18181b; font-size: 15px;
   }
   #choices {
-    position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
-    display: none; flex-direction: column; gap: 10px; width: min(92vw, 560px); z-index: 20;
+    position: fixed; bottom: 92px; left: 50%; transform: translateX(-50%);
+    display: none; flex-direction: column; gap: 10px; width: min(94vw, 560px); z-index: 20;
   }
   .choice-btn {
     background: #ffffff; border: 3px solid #18181b; color: #18181b;
-    padding: 13px 18px; border-radius: 20px; font-family: inherit;
-    font-size: 15px; font-weight: bold; text-align: left; cursor: pointer;
+    padding: 13px 16px; border-radius: 20px; font-family: inherit;
+    font-size: 14px; font-weight: bold; text-align: left; cursor: pointer;
     box-shadow: 0 4px 0 #18181b; transition: transform 0.08s;
   }
   .choice-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #18181b; }
@@ -66,6 +66,31 @@ const ctx = canvas.getContext('2d');
 const choicesEl = document.getElementById('choices');
 const btnSit = document.getElementById('btn-sit');
 
+let W, H, groundY;
+const keys = { left: false, right: false };
+let level = 0, levelWidth = 2500;
+let camX = 0, camY = 0, camZoom = 1.0;
+let targetCamX = 0, targetCamY = 0, targetZoom = 1.0;
+
+let gameState = 'TUTORIAL';
+let currentQuest = 'Расспросить бабку на Кольце';
+let hp = 10, maxHp = 10;
+let startTime = Date.now(), elapsedSec = 0;
+let stats = { poles: 0, dogs: 0, urns: 0, npcs: 0 };
+
+let dialogQueue = [], currentLine = null, typedChars = 0, typeTimer = 0, dialogLockTimer = 0;
+let dogIntroTimer = 0, phoneCrackShow = false, finaleStamp = 0;
+let screenShake = 0, punchTimer = 0, animTime = 0;
+
+const p1 = { x: 130, y: 0, vx: 0, vy: 0, w: 36, h: 56, dir: 1, grounded: false, sway: 0, walkPhase: 0, sitting: false, reachPocket: false };
+const p2 = { x: 75, y: 0, w: 36, h: 54, dir: 1, sway: 0, walkPhase: 0, sitting: false };
+
+let npcs = [], obstacles = [], particles = [], floatTexts = [];
+let clouds = [
+  { x: 160, y: 70, s: 1.1 }, { x: 680, y: 95, s: 0.9 },
+  { x: 1250, y: 60, s: 1.2 }, { x: 1850, y: 85, s: 1.0 }
+];
+
 function resize() {
   const oldGroundY = groundY;
   W = canvas.width = window.innerWidth;
@@ -83,31 +108,6 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 resize();
-
-
-const keys = { left: false, right: false };
-let level = 0, levelWidth = 2500;
-let camX = 0, camY = 0, camZoom = 1.0;
-let targetCamX = 0, targetCamY = 0, targetZoom = 1.0;
-
-let gameState = 'TUTORIAL';
-let currentQuest = 'Расспросить бабку на Кольце';
-let hp = 10, maxHp = 10;
-let startTime = Date.now(), elapsedSec = 0;
-let stats = { poles: 0, dogs: 0, urns: 0, npcs: 0 };
-
-let dialogQueue = [], currentLine = null, typedChars = 0, typeTimer = 0, dialogLockTimer = 0;
-let dogIntroTimer = 0, phoneCrackShow = false, finaleStamp = 0;
-let screenShake = 0, punchTimer = 0, animTime = 0;
-const p1 = { x: 130, y: 0, vx: 0, vy: 0, w: 36, h: 56, dir: 1, grounded: false, sway: 0, walkPhase: 0, sitting: false, reachPocket: false };
-const p2 = { x: 75, y: 0, w: 36, h: 54, dir: 1, sway: 0, walkPhase: 0, sitting: false };
-
-let npcs = [], obstacles = [], particles = [], floatTexts = [];
-let clouds = [
-  { x: 160, y: 70, s: 1.1 }, { x: 680, y: 95, s: 0.9 },
-  { x: 1250, y: 60, s: 1.2 }, { x: 1850, y: 85, s: 1.0 }
-];
-
 const levelsData = [
   {
     name: "ЛОКАЦИЯ 1: КОЛЬЦО",
@@ -332,11 +332,13 @@ function triggerGazeboScene() {
   gameState = 'GAZEBO_SCENE';
   const gzX = 1180;
   p2.x = gzX + 18;
+  p2.y = groundY - p2.h;
   p2.dir = 1;
   p2.sitting = true;
 
   setTimeout(() => {
     p1.x = gzX + 124;
+    p1.y = groundY - p1.h;
     p1.dir = -1;
     p1.sitting = true;
 
@@ -540,7 +542,7 @@ function update() {
       }
     }
 
-    targetZoom = 1.38;
+    targetZoom = H > W ? 1.15 : 1.38;
     if (currentLine.panToNpc !== undefined && npcs[currentLine.panToNpc]) {
       targetCamX = npcs[currentLine.panToNpc].x;
     } else if (npcs.length > 0 && Math.abs(p1.x - npcs[0].x) < 160) {
@@ -551,7 +553,7 @@ function update() {
     targetCamY = groundY - 40;
   } else if (gameState === 'DOG_INTRO') {
     const dog = obstacles.find(o => o.type === 'mad_dog');
-    targetZoom = 1.72;
+    targetZoom = H > W ? 1.35 : 1.72;
     targetCamX = dog ? dog.x + 25 : p1.x + 150;
     targetCamY = groundY - 25;
     dogIntroTimer++;
@@ -562,10 +564,10 @@ function update() {
       gameState = 'PLAY';
     }
   } else if (gameState === 'GAZEBO_SCENE') {
-    targetZoom = 1.48;
+    targetZoom = H > W ? 1.25 : 1.48;
     targetCamX = 1180 + 88;
     targetCamY = groundY - 45;
-    } else {
+  } else {
     const isPortrait = H > W;
     targetZoom = isPortrait ? 0.82 : 1.0;
     const lookAhead = isPortrait ? W * 0.05 : W * 0.15;
@@ -647,6 +649,7 @@ function update() {
   const targetP2X = p1.x - (p1.dir * 52);
   const p2Move = (targetP2X - p2.x) * 0.08;
   p2.x += p2Move;
+  if (!p2.sitting) p2.y = groundY - p2.h;
   if (Math.abs(p2Move) > 0.3) p2.walkPhase += 0.25;
   else p2.walkPhase = 0;
   p2.dir = p1.x >= p2.x ? 1 : -1;
@@ -810,13 +813,11 @@ function drawSonya(g) {
   ctx.fillStyle = '#f87171';
   ctx.fillRect(g.dir === 1 ? x + 22 : x + 9, y + 11, 3, 2);
 
-  pxRect(x + 4, y - 4, 27, 9, '#854d0e');
-  if (g.dir === -1) pxRect(x + 22, y + 3, 9, 19, '#854d0e');
-  else pxRect(x + 4, y + 3, 9, 19, '#854d0e');
-  ctx.fillStyle = '#a16207';
-  ctx.fillRect(x + 6, y - 3, 22, 6);
-  ctx.fillStyle = '#ca8a04';
-  ctx.fillRect(x + 9, y - 1, 15, 2);
+  pxRect(x + 4, y - 4, 27, 9, '#3e1c0a');
+  if (g.dir === -1) pxRect(x + 22, y + 3, 9, 19, '#3e1c0a');
+  else pxRect(x + 4, y + 3, 9, 19, '#3e1c0a');
+  ctx.fillStyle = '#78350f';
+  ctx.fillRect(x + 8, y - 2, 16, 3);
 
   const eyeX = g.dir === 1 ? x + 21 : x + 10;
   ctx.fillStyle = '#090d16';
@@ -1154,7 +1155,7 @@ function drawObstacles() {
   }
 }
 function drawSpeechBubble(targetX, targetY, speaker, text) {
-  const maxW = Math.min(340, W - 40);
+  const maxW = Math.min(340, W - 28);
   ctx.font = 'bold 14px Courier New';
   const words = text.split(' ');
   const lines = [];
@@ -1207,7 +1208,7 @@ function drawDogStamp() {
   ctx.translate(W / 2, H / 2 - 20);
   ctx.rotate(-0.06);
 
-  const sw = Math.min(480, W - 30);
+  const sw = Math.min(480, W - 26);
   const sh = 155;
   ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
   ctx.fillRect(-sw / 2, -sh / 2, sw, sh);
@@ -1241,7 +1242,7 @@ function drawDogStamp() {
     ctx.restore();
 
     ctx.fillStyle = '#fde047';
-    ctx.font = 'bold 15px Courier New';
+    ctx.font = 'bold 14px Courier New';
     ctx.fillText('Она явно не хочет подружиться!', 0, 52);
   }
 
@@ -1252,10 +1253,10 @@ function drawCrackedPhoneOverlay() {
   ctx.fillStyle = 'rgba(0, 0, 0, 0.78)';
   ctx.fillRect(0, 0, W, H);
 
-  const pw = Math.min(230, W * 0.55);
-  const ph = Math.min(410, H * 0.72);
+  const pw = Math.min(230, W * 0.58);
+  const ph = Math.min(410, H * 0.68);
   const px = (W - pw) / 2;
-  const py = (H - ph) / 2 - 20;
+  const py = (H - ph) / 2 - 15;
 
   ctx.fillStyle = '#090d16';
   ctx.strokeStyle = '#475569';
@@ -1282,9 +1283,9 @@ function drawCrackedPhoneOverlay() {
   });
 
   ctx.fillStyle = '#fde047';
-  ctx.font = 'bold 15px Courier New';
+  ctx.font = 'bold 14px Courier New';
   ctx.textAlign = 'center';
-  ctx.fillText('Чужой разбитый телефон (нажми чтобы убрать)', W / 2, py + ph + 28);
+  ctx.fillText('Чужой разбитый телефон (нажми)', W / 2, py + ph + 28);
 }
 function draw() {
   const data = levelsData[level];
@@ -1380,7 +1381,7 @@ function draw() {
 
   ctx.restore();
 
-    if (gameState !== 'FINALE' && gameState !== 'GAMEOVER') {
+  if (gameState !== 'FINALE' && gameState !== 'GAMEOVER') {
     const isPortrait = H > W;
     const panelW = isPortrait ? W - 24 : 270;
 
@@ -1430,11 +1431,11 @@ function draw() {
     ctx.fillStyle = 'rgba(15, 23, 42, 0.86)';
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#ef4444';
-    ctx.font = 'bold 32px Courier New';
+    ctx.font = 'bold 28px Courier New';
     ctx.textAlign = 'center';
     ctx.fillText('СОБАКА ЗАГРЫЗЛА!', W / 2, H / 2 - 20);
     ctx.fillStyle = '#fff';
-    ctx.font = '18px Courier New';
+    ctx.font = '16px Courier New';
     ctx.fillText('Обнови страницу или нажми F5', W / 2, H / 2 + 25);
   }
 
@@ -1447,7 +1448,7 @@ function drawFinaleReport() {
   ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
   ctx.fillRect(0, 0, W, H);
 
-  const bw = Math.min(460, W - 30);
+  const bw = Math.min(460, W - 26);
   const bh = 365;
   const bx = (W - bw) / 2;
   const by = (H - bh) / 2;
@@ -1464,39 +1465,39 @@ function drawFinaleReport() {
   ctx.strokeRect(bx + 4, by + 4, bw - 8, bh - 8);
 
   ctx.fillStyle = '#fde047';
-  ctx.font = 'bold 24px Courier New';
+  ctx.font = 'bold 22px Courier New';
   ctx.textAlign = 'center';
   ctx.fillText('МОБИЛА НАШЛАСЬ!', W / 2, by + 42);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 16px Courier New';
+  ctx.font = 'bold 15px Courier New';
   ctx.fillText(`Время прохождения: ${elapsedSec} сек.`, W / 2, by + 84);
   ctx.fillText(`Отпизжено собак: ${stats.dogs}`, W / 2, by + 114);
   ctx.fillText(`Снесено столбов: ${stats.poles}`, W / 2, by + 144);
   ctx.fillText(`Сбито мусорок: ${stats.urns}`, W / 2, by + 174);
   ctx.fillText(`Отпизжено жителей: ${stats.npcs}`, W / 2, by + 204);
 
-  const btnW = (bw - 50) / 2;
+  const btnW = (bw - 44) / 2;
   const btnY = by + 260;
-  pxRect(bx + 18, btnY, btnW, 56, '#16a34a');
+  pxRect(bx + 16, btnY, btnW, 56, '#16a34a');
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 16px Courier New';
-  ctx.fillText('НАЧАТЬ ЗАНОВО', bx + 18 + btnW / 2, btnY + 33);
+  ctx.font = 'bold 14px Courier New';
+  ctx.fillText('НАЧАТЬ ЗАНОВО', bx + 16 + btnW / 2, btnY + 33);
 
-  pxRect(bx + 32 + btnW, btnY, btnW, 56, '#dc2626');
+  pxRect(bx + 28 + btnW, btnY, btnW, 56, '#dc2626');
   ctx.fillStyle = '#fff';
-  ctx.fillText('ВЫЙТИ', bx + 32 + btnW + btnW / 2, btnY + 33);
+  ctx.fillText('ВЫЙТИ', bx + 28 + btnW + btnW / 2, btnY + 33);
 
   ctx.restore();
 }
 
 function handleFinaleTap(clientX, clientY) {
   if (gameState !== 'FINALE') return;
-  const bw = Math.min(460, W - 30);
+  const bw = Math.min(460, W - 26);
   const bh = 365;
   const bx = (W - bw) / 2;
   const by = (H - bh) / 2;
-  const btnW = (bw - 50) / 2;
+  const btnW = (bw - 44) / 2;
   const btnY = by + 260;
 
   const rect = canvas.getBoundingClientRect();
@@ -1504,13 +1505,13 @@ function handleFinaleTap(clientX, clientY) {
   const my = clientY - rect.top;
 
   if (my >= btnY && my <= btnY + 56) {
-    if (mx >= bx + 18 && mx <= bx + 18 + btnW) {
+    if (mx >= bx + 16 && mx <= bx + 16 + btnW) {
       hp = 10;
       stats = { poles: 0, dogs: 0, urns: 0, npcs: 0 };
       startTime = Date.now();
       gameState = 'PLAY';
       loadLevel(0);
-    } else if (mx >= bx + 32 + btnW && mx <= bx + 32 + btnW * 2) {
+    } else if (mx >= bx + 28 + btnW && mx <= bx + 28 + btnW * 2) {
       window.close();
       window.location.href = 'https://google.com';
     }
@@ -1520,7 +1521,7 @@ function handleFinaleTap(clientX, clientY) {
 canvas.addEventListener('click', e => handleFinaleTap(e.clientX, e.clientY));
 canvas.addEventListener('touchstart', e => {
   if (gameState === 'FINALE' && e.touches.length > 0) {
-    handleFinaleTap(e.touches.clientX, e.touches.clientY);
+    handleFinaleTap(e.touches[0].clientX, e.touches[0].clientY);
   }
 });
 
@@ -1530,7 +1531,7 @@ function showTutorial() {
   overlay.id = 'tut-box';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.88);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;';
   overlay.innerHTML = `
-    <div style="background:#1e293b;border:4px solid #fde047;border-radius:18px;padding:22px;max-width:440px;width:100%;color:#fff;font-family:inherit;box-shadow:0 8px 0 #090d16;">
+    <div style="background:#1e293b;border:4px solid #fde047;border-radius:18px;padding:20px;max-width:440px;width:100%;color:#fff;font-family:inherit;box-shadow:0 8px 0 #090d16;">
       <h2 style="color:#fde047;text-align:center;margin-bottom:14px;font-size:20px;">КАК ИГРАТЬ</h2>
       <p style="margin-bottom:10px;line-height:1.4;">◀ / ▶ (или A / D) — ходить влево и вправо.</p>
       <p style="margin-bottom:10px;line-height:1.4;">💬 ЧАТ (или E) — говорить с людьми на пути.</p>
